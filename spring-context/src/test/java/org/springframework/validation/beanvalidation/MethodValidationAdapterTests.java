@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
-import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.validation.method.MethodValidationResult;
 import org.springframework.validation.method.ParameterErrors;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -53,6 +53,12 @@ public class MethodValidationAdapterTests {
 	private static final Person faustino1234 = new Person("Faustino1234", List.of("Working on Spring"));
 
 	private static final Person cayetana6789 = new Person("Cayetana6789", List.of("  "));
+
+	private static final Person baure4567 = new Person("Baure4567", List.of());
+
+	private static final Course programming203 = new Course("Effective Unit Testing", Set.of(faustino1234), baure4567);
+
+	private static final Course programming142 = new Course("Debugging Fundamentals", Set.of(baure4567), cayetana6789);
 
 
 	private final MethodValidationAdapter validationAdapter = new MethodValidationAdapter();
@@ -85,6 +91,7 @@ public class MethodValidationAdapterTests {
 				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
 				codes [student.name,name]; arguments []; default message [name],10,1]; \
 				default message [size must be between 1 and 10]"""));
+			assertThat(ex.getBeanResults().get(0).getContainer()).isNull();
 
 			assertBeanResult(ex.getBeanResults().get(1), 1, "guardian", cayetana6789, List.of("""
 				Field error in object 'guardian' on field 'name': rejected value [Cayetana6789]; \
@@ -98,6 +105,7 @@ public class MethodValidationAdapterTests {
 				[org.springframework.context.support.DefaultMessageSourceResolvable: codes \
 				[guardian.hobbies[0],hobbies[0]]; arguments []; default message [hobbies[0]]]; \
 				default message [must not be blank]"""));
+			assertThat(ex.getBeanResults().get(1).getContainer()).isNull();
 
 			assertValueResult(ex.getValueResults().get(0), 2, 3, List.of("""
 				org.springframework.context.support.DefaultMessageSourceResolvable: \
@@ -125,6 +133,7 @@ public class MethodValidationAdapterTests {
 				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
 				codes [studentToAdd.name,name]; arguments []; default message [name],10,1]; \
 				default message [size must be between 1 and 10]"""));
+			assertThat(ex.getBeanResults().get(0).getContainer()).isNull();
 		});
 	}
 
@@ -159,6 +168,7 @@ public class MethodValidationAdapterTests {
 				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
 				codes [person.name,name]; arguments []; default message [name],10,1]; \
 				default message [size must be between 1 and 10]"""));
+			assertThat(ex.getBeanResults().get(0).getContainer()).isNull();
 		});
 	}
 
@@ -167,7 +177,8 @@ public class MethodValidationAdapterTests {
 		MyService target = new MyService();
 		Method method = getMethod(target, "addPeople");
 
-		testArgs(target, method, new Object[] {List.of(faustino1234, cayetana6789)}, ex -> {
+		List<Person> arg = List.of(faustino1234, cayetana6789);
+		testArgs(target, method, new Object[] {arg}, ex -> {
 
 			assertThat(ex.getAllValidationResults()).hasSize(2);
 
@@ -181,6 +192,7 @@ public class MethodValidationAdapterTests {
 				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
 				codes [people.name,name]; arguments []; default message [name],10,1]; \
 				default message [size must be between 1 and 10]"""));
+			assertThat(results.get(0).getContainer()).isEqualTo(arg);
 
 			assertBeanResult(results.get(1), paramIndex, objectName, cayetana6789, List.of("""
 				Field error in object 'people' on field 'name': rejected value [Cayetana6789]; \
@@ -194,6 +206,7 @@ public class MethodValidationAdapterTests {
 				[org.springframework.context.support.DefaultMessageSourceResolvable: codes \
 				[people.hobbies[0],hobbies[0]]; arguments []; default message [hobbies[0]]]; \
 				default message [must not be blank]"""));
+			assertThat(results.get(0).getContainer()).isEqualTo(arg);
 		});
 	}
 
@@ -202,7 +215,8 @@ public class MethodValidationAdapterTests {
 		MyService target = new MyService();
 		Method method = getMethod(target, "addPeople");
 
-		testArgs(target, method, new Object[] {Set.of(faustino1234, cayetana6789)}, ex -> {
+		Set<Person> arg = Set.of(faustino1234, cayetana6789);
+		testArgs(target, method, new Object[] {arg}, ex -> {
 
 			assertThat(ex.getAllValidationResults()).hasSize(2);
 
@@ -211,25 +225,191 @@ public class MethodValidationAdapterTests {
 			List<ParameterErrors> results = ex.getBeanResults();
 
 			assertThat(results).satisfiesExactlyInAnyOrder(
-				result -> assertBeanResult(result, paramIndex, objectName, faustino1234, List.of("""
-					Field error in object 'people' on field 'name': rejected value [Faustino1234]; \
-					codes [Size.people.name,Size.name,Size.java.lang.String,Size]; \
-					arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
-					codes [people.name,name]; arguments []; default message [name],10,1]; \
-					default message [size must be between 1 and 10]""")),
-				result -> assertBeanResult(result, paramIndex, objectName, cayetana6789, List.of("""
-					Field error in object 'people' on field 'name': rejected value [Cayetana6789]; \
-					codes [Size.people.name,Size.name,Size.java.lang.String,Size]; \
-					arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
-					codes [people.name,name]; arguments []; default message [name],10,1]; \
-					default message [size must be between 1 and 10]""", """
-					Field error in object 'people' on field 'hobbies[0]': rejected value [  ]; \
-					codes [NotBlank.people.hobbies[0],NotBlank.people.hobbies,NotBlank.hobbies[0],\
-					NotBlank.hobbies,NotBlank.java.lang.String,NotBlank]; arguments \
-					[org.springframework.context.support.DefaultMessageSourceResolvable: codes \
-					[people.hobbies[0],hobbies[0]]; arguments []; default message [hobbies[0]]]; \
-					default message [must not be blank]"""))
+				result -> {
+					assertBeanResult(result, paramIndex, objectName, faustino1234, List.of("""
+						Field error in object 'people' on field 'name': rejected value [Faustino1234]; \
+						codes [Size.people.name,Size.name,Size.java.lang.String,Size]; \
+						arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+						codes [people.name,name]; arguments []; default message [name],10,1]; \
+						default message [size must be between 1 and 10]"""));
+					assertThat(result.getContainer()).isEqualTo(arg);
+				},
+				result -> {
+					assertBeanResult(result, paramIndex, objectName, cayetana6789, List.of("""
+						Field error in object 'people' on field 'name': rejected value [Cayetana6789]; \
+						codes [Size.people.name,Size.name,Size.java.lang.String,Size]; \
+						arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+						codes [people.name,name]; arguments []; default message [name],10,1]; \
+						default message [size must be between 1 and 10]""", """
+						Field error in object 'people' on field 'hobbies[0]': rejected value [  ]; \
+						codes [NotBlank.people.hobbies[0],NotBlank.people.hobbies,NotBlank.hobbies[0],\
+						NotBlank.hobbies,NotBlank.java.lang.String,NotBlank]; arguments \
+						[org.springframework.context.support.DefaultMessageSourceResolvable: codes \
+						[people.hobbies[0],hobbies[0]]; arguments []; default message [hobbies[0]]]; \
+						default message [must not be blank]"""));
+					assertThat(result.getContainer()).isEqualTo(arg);
+				}
 			);
+		});
+	}
+
+	// Problem 1 - Cascaded validation produces JSR error on some paths
+	@Test
+	void problemOne_validateNestedArgument() {
+		MyService target = new MyService();
+		Method method = getMethod(target, "registerCourse");
+
+		// Fails attempting to validate as path professor.name is not valid for type Person
+		testArgs(target, method, new Object[] {programming142}, ex -> {
+
+			assertThat(ex.getAllValidationResults()).hasSize(1);
+
+			assertBeanResult(ex.getBeanResults().get(0), 0, "course", faustino1234, List.of("""
+				Field error in object 'course' on field 'professor.name': rejected value [Faustino1234]; \
+				codes [Size.course.professor.name,Size.professor.name,Size.name,Size]; \
+				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+				codes [course.professor.name,professor.name]; arguments []; default message [professor.name],10,1]; \
+				default message [size must be between 1 and 10]"""));
+			assertThat(ex.getBeanResults().get(0).getContainer()).isNull();
+		});
+	}
+
+	@Test
+	void problemOne_validateNestedReturnValueBean() {
+		MyService target = new MyService();
+
+		// Fails attempting to validate as path professor.name is not valid for type Person
+		testReturnValue(target, getMethod(target, "getCourse"), programming142, ex -> {
+
+			assertThat(ex.getAllValidationResults()).hasSize(1);
+
+			assertBeanResult(ex.getBeanResults().get(0), -1, "course", faustino1234, List.of("""
+				Field error in object 'course' on field 'professor.name': rejected value [Faustino1234]; \
+				codes [Size.course.professor.name,Size.professor.name,Size.name,Size]; \
+				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+				codes [course.professor.name,professor.name]; arguments []; default message [professor.name],10,1]; \
+				default message [size must be between 1 and 10]"""));
+			assertThat(ex.getBeanResults().get(0).getContainer()).isNull();
+		});
+	}
+
+
+	// Problem 2 - Container argument incorrect when validating non-field object error
+	@Test
+	void problemTwo_validateListArgument() {
+		MyService target = new MyService();
+		Method method = getMethod(target, "setHobbiesList");
+
+		List<String> arg = List.of(" ", "Developing", "");
+		testArgs(target, method, new Object[] {arg}, ex -> {
+
+			assertThat(ex.getAllValidationResults()).hasSize(2);
+
+			int paramIndex = 0;
+			String objectName = "hobbies";
+			List<ParameterErrors> results = ex.getBeanResults();
+
+			assertThat(results).satisfiesExactlyInAnyOrder(
+				result -> {
+					// Fails argument assertion as the argument is set as the service class
+					assertBeanResult(result, paramIndex, objectName, " ", List.of("""
+						Error in object 'hobbies': \
+						codes [NotBlank.hobbies,NotBlank]; \
+						arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+						codes [hobbies]; arguments []; default message []]; \
+						default message [must not be blank]"""));
+					assertThat(result.getContainer()).isEqualTo(arg);
+				},
+				result -> {
+					// Fails argument assertion as the argument is set as the service class
+					assertBeanResult(result, paramIndex, objectName, "", List.of("""
+						Error in object 'hobbies': \
+						codes [NotBlank.hobbies,NotBlank]; \
+						arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+						codes [hobbies]; arguments []; default message []]; \
+						default message [must not be blank]"""));
+					assertThat(result.getContainer()).isEqualTo(arg);
+				}
+			);
+		});
+	}
+
+	@Test
+	void problemTwo_validateSetArgument() {
+		MyService target = new MyService();
+		Method method = getMethod(target, "setHobbiesSet");
+
+		Set<String> arg = Set.of(" ", "Developing", "");
+		testArgs(target, method, new Object[] {arg}, ex -> {
+
+			// Fails result count as all violations are mapped to the service class
+			assertThat(ex.getAllValidationResults()).hasSize(2);
+
+			int paramIndex = 0;
+			String objectName = "hobbies";
+			List<ParameterErrors> results = ex.getBeanResults();
+
+			assertThat(results).satisfiesExactlyInAnyOrder(
+					result -> {
+						assertBeanResult(result, paramIndex, objectName, " ", List.of("""
+							Error in object 'hobbies': \
+							codes [NotBlank.hobbies,NotBlank]; \
+							arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+							codes [hobbies]; arguments []; default message []]; \
+							default message [must not be blank]"""));
+						assertThat(result.getContainer()).isEqualTo(arg);
+					},
+					result -> {
+						assertBeanResult(result, paramIndex, objectName, "", List.of("""
+							Error in object 'hobbies': \
+							codes [NotBlank.hobbies,NotBlank]; \
+							arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+							codes [people.name,name]; arguments []; default message []]; \
+							default message [must not be blank]"""));
+						assertThat(result.getContainer()).isEqualTo(arg);
+					}
+			);
+		});
+	}
+
+
+	// Problem 3 - Bean result container incorrectly set on nested validation
+	@Test
+	void problemThree_validateNestedArgument() {
+		MyService target = new MyService();
+		Method method = getMethod(target, "registerCourse");
+
+		testArgs(target, method, new Object[] {programming203}, ex -> {
+
+			assertThat(ex.getAllValidationResults()).hasSize(1);
+
+			assertBeanResult(ex.getBeanResults().get(0), 0, "course", faustino1234, List.of("""
+				Field error in object 'course' on field 'students[].name': rejected value [Faustino1234]; \
+				codes [Size.course.students[].name,Size.course.students.name,Size.students[].name,Size.students.name,Size.name,Size]; \
+				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+				codes [course.students[].name,students[].name]; arguments []; default message [students[].name],10,1]; \
+				default message [size must be between 1 and 10]"""));
+			// Fails as the container type is set due because leaf bean != arg
+			assertThat(ex.getBeanResults().get(0).getContainer()).isNull();
+		});
+	}
+
+	@Test
+	void problemThree_validateNestedReturnValueBean() {
+		MyService target = new MyService();
+
+		testReturnValue(target, getMethod(target, "getCourse"), programming203, ex -> {
+
+			assertThat(ex.getAllValidationResults()).hasSize(1);
+
+			assertBeanResult(ex.getBeanResults().get(0), -1, "course", faustino1234, List.of("""
+				Field error in object 'course' on field 'students[].name': rejected value [Faustino1234]; \
+				codes [Size.course.students[].name,Size.course.students.name,Size.students[].name,Size.students.name,Size.name,Size]; \
+				arguments [org.springframework.context.support.DefaultMessageSourceResolvable: \
+				codes [course.students[].name,students[].name]; arguments []; default message [students[].name],10,1]; \
+				default message [size must be between 1 and 10]"""));
+			// Fails as the container type is set due because leaf bean != arg
+			assertThat(ex.getBeanResults().get(0).getContainer()).isNull();
 		});
 	}
 
@@ -243,15 +423,15 @@ public class MethodValidationAdapterTests {
 
 	private static void assertBeanResult(
 			ParameterErrors errors, int parameterIndex, String objectName, @Nullable Object argument,
-			List<String> fieldErrors) {
+			List<String> objectErrors) {
 
 		assertThat(errors.getMethodParameter().getParameterIndex()).isEqualTo(parameterIndex);
 		assertThat(errors.getObjectName()).isEqualTo(objectName);
 		assertThat(errors.getArgument()).isSameAs(argument);
 
-		assertThat(errors.getFieldErrors())
-				.extracting(FieldError::toString)
-				.containsExactlyInAnyOrderElementsOf(fieldErrors);
+		assertThat(errors.getAllErrors())
+				.extracting(ObjectError::toString)
+				.containsExactlyInAnyOrderElementsOf(objectErrors);
 	}
 
 	private static void assertValueResult(
@@ -288,8 +468,25 @@ public class MethodValidationAdapterTests {
 		public void addPeople(@Valid Collection<Person> people) {
 		}
 
+		public void registerCourse(@Valid Course course) {
+		}
+
+		@Valid
+		public Course getCourse() {
+			throw new UnsupportedOperationException();
+		}
+
+		public void setHobbiesSet(@Valid Set<@NotBlank String> hobbies) {
+		}
+
+		public void setHobbiesList(@Valid List<@NotBlank String> hobbies) {
+		}
+
 	}
 
+	@SuppressWarnings("unused")
+	private record Course(@NotBlank String title, @Valid Set<Person> students, @Valid Person professor) {
+	}
 
 	@SuppressWarnings("unused")
 	private record Person(@Size(min = 1, max = 10) String name, List<@NotBlank String> hobbies) {

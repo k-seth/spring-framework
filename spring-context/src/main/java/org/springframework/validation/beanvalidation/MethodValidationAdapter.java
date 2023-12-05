@@ -452,6 +452,7 @@ public class MethodValidationAdapter implements MethodValidator {
 			this.parameter = param;
 			this.bean = leafBean;
 			this.container = (arg != null && !arg.equals(leafBean) ? arg : null);
+//			this.container = (isContainerElement(node) ? arg : null);
 			this.containerIndex = node.getIndex();
 			this.containerKey = node.getKey();
 			this.errors = createBindingResult(param, leafBean);
@@ -466,6 +467,15 @@ public class MethodValidationAdapter implements MethodValidator {
 			return new ParameterErrors(
 					this.parameter, this.bean, this.errors, this.container,
 					this.containerIndex, this.containerKey);
+		}
+
+		private static boolean isContainerElement(Path.Node node) {
+			return switch (node.getKind()) {
+				case BEAN -> node.as(Path.BeanNode.class).getContainerClass() != null;
+				case PROPERTY -> node.as(Path.PropertyNode.class).getContainerClass() != null;
+				case CONTAINER_ELEMENT -> true;
+				default -> false;
+			};
 		}
 	}
 
